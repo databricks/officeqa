@@ -50,10 +50,10 @@ print(f"Hard: {len(df[df['difficulty'] == 'hard'])}")
 
 ### 3. Evaluate your model outputs
 ```python
-from reward import officeqa_reward
+from reward import score_answer
 
 # Score a single prediction
-score = officeqa_reward(
+score = score_answer(
     ground_truth="123.45",
     prediction="123.45",
     tolerance=0.01  # 1% tolerance for numerical answers
