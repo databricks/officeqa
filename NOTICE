@@ -2,10 +2,10 @@ Copyright (2025) Databricks, Inc.
 
 This repository includes materials developed by Databricks, Inc. (https://www.databricks.com/) and contains files provided under different licenses. 
 
-The file reward.py is licensed under the Apache 2.0 license. See the LICENSE-APACHE file in this repository for details. 
+The files reward.py, treasury_bulletins_parsed/transform_parsed_files.py, and treasury_bulletins_parsed/unzip.py are licensed under the Apache 2.0 license. See the LICENSE-APACHE file in this repository for details. 
 
 The file officeqa.csv is licensed under the Created Commons Attribution-ShareAlike 4.0 license. See the LICENSE-CC-BY-SA  file in this repository for details. 
 
 The files included in the treasury_bulletin_pdfs include treasury bulletin issues provided by the Bureau of the Fiscal Services. These treasury bulletin issues are US Government works in the public domain. 
 
-The files included in treasury_bulletins_parsed include a parsed version of the treasury bulletin issues.
+The files included in treasury_bulletins_parsed/jsons and treasury_bulletins_parsed/transformed include a parsed version of the treasury bulletin issues, and are in the public domain.
