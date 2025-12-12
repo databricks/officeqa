@@ -1,5 +1,5 @@
 """
-PARQA Reward Function.
+Reward Function.
 
 Usage:
 from reward import score_answer
