@@ -18,6 +18,8 @@ OfficeQA evaluates how well AI systems can reason over real-world documents to a
 **Repository Contents:**
 - `officeqa.csv` - The benchmark dataset with 246 questions
 - `treasury_bulletin_pdfs/` - Source PDF documents (696 files)
+- `treasury_bulletins_parsed/` - Parsed version of the treasury bulletin PDFs.
+- `treasury_bulletins_parsed_transformed/` - Transformed version of the parsed treasury bulletins. Transformations made, like stripping bounding box information and changing html tables to markdown, were in order to make docs more 'legible' by agents.
 - `reward.py` - Evaluation script for scoring model outputs
 
 **Dataset Schema (`officeqa.csv`):**
@@ -36,7 +38,7 @@ OfficeQA evaluates how well AI systems can reason over real-world documents to a
 git clone https://github.com/databricks/officeqa.git
 cd officeqa
 ```
-NOTE: This may take a long time due to the large amount of PDF documents in `treasury_bulletin_pdfs`
+NOTE: This may take a long time due to the large amount of PDF documents in `treasury_bulletin_pdfs`.
 
 ### 2. Load the dataset
 ```python
@@ -48,7 +50,14 @@ print(f"Easy: {len(df[df['difficulty'] == 'easy'])}")
 print(f"Hard: {len(df[df['difficulty'] == 'hard'])}")
 ```
 
-### 3. Evaluate your model outputs
+### 3. Choose your corpus
+There are a few different forms of the Treasury Bulletin corpus that are available for you to use:
+1. 
+We've provided both the original PDFs, a parsed version of the treasury bulletins, and a 
+
+# TODO: flesh out
+
+### 4. Evaluate your model outputs
 ```python
 from reward import officeqa_reward
 
