@@ -17,10 +17,9 @@ OfficeQA evaluates how well AI systems can reason over real-world documents to a
 
 **Repository Contents:**
 - `officeqa.csv` - The benchmark dataset with 246 questions
-- `treasury_bulletin_pdfs/` - Source PDF documents (696 files)
-- `treasury_bulletins_parsed/` - Parsed version of the treasury bulletin PDFs.
-- `treasury_bulletins_parsed_transformed/` - Transformed version of the parsed treasury bulletins. Transformations made, like stripping bounding box information and changing html tables to markdown, were in order to make docs more 'legible' by agents.
 - `reward.py` - Evaluation script for scoring model outputs
+- `treasury_bulletin_pdfs/` - Original source PDF documents (696 files, ~20GB)
+- `treasury_bulletins_parsed/` - Parsed and transformed versions (see more details below)
 
 **Dataset Schema (`officeqa.csv`):**
 | Column | Description |
@@ -51,11 +50,48 @@ print(f"Hard: {len(df[df['difficulty'] == 'hard'])}")
 ```
 
 ### 3. Choose your corpus
-There are a few different forms of the Treasury Bulletin corpus that are available for you to use:
-1. 
-We've provided both the original PDFs, a parsed version of the treasury bulletins, and a 
 
-# TODO: flesh out
+We provide the Treasury Bulletin corpus in multiple formats:
+
+#### Option A: Original PDFs (`treasury_bulletin_pdfs/`)
+The raw PDF documents as downloaded from the Federal Reserve Archive. Use these if your system can process PDFs directly.
+- **696 PDF files** covering 1939-2025
+- Total size: ~20GB
+
+#### Option B: Parsed Documents (`treasury_bulletins_parsed/`)
+Pre-parsed versions of the PDFs. The files are distributed as zip archives to stay within Git file size limits.
+
+**Structure:**
+```
+treasury_bulletins_parsed/
+├── jsons/                    # Parsed JSON files with full structure
+│   ├── treasury_bulletins_parsed_part001.zip
+│   ├── treasury_bulletins_parsed_part002.zip
+│   └── treasury_bulletins_parsed_part003.zip
+├── transformed/              # Agent-friendly text format
+│   └── treasury_bulletins_transformed.zip
+├── unzip.py                  # Script to extract all files
+└── transform_parsed_files.py # Script to transform JSON → text
+```
+
+**To extract the files:**
+```bash
+cd treasury_bulletins_parsed
+python unzip.py
+```
+
+This will extract:
+- `jsons/*.json` - Full parsed documents with bounding boxes, tables as HTML, and element metadata
+- `transformed/*.txt` - Simplified text format with tables converted to Markdown (more readable for LLMs)
+
+Note that the script `transform_parsed_files.py` is what was used to convert the files from `jsons/` into the files in `transformed/`. This script is provided for convenience in case you wish to modify the ways in which files are transformed for agent consumption from the parsed documents.
+
+#### Which format should I use?
+| Format | Best for | Size |
+|--------|----------|------|
+| PDFs | Systems with native PDF support, or you want to parse from scratch | ~20GB |
+| Parsed JSON | Full structural information, coordinates | ~600MB |
+| Transformed TXT | LLM/agent consumption, cleaner text | ~200MB |
 
 ### 4. Evaluate your model outputs
 ```python
