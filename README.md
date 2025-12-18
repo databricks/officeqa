@@ -27,7 +27,8 @@ OfficeQA evaluates how well AI systems can reason over real-world documents to a
 | `uid` | Unique question identifier |
 | `question` | The question to answer |
 | `answer` | Ground truth answer |
-| `source_docs` | Document(s) required to answer the question |
+| `source_docs` | Original URL(s) from the Federal Reserve Archive |
+| `source_files` | Corresponding parsed filename(s) (e.g., `treasury_bulletin_1941_01.txt`) |
 | `difficulty` | `easy` or `hard` |
 
 ## Getting Started
@@ -92,6 +93,30 @@ Note that the script `transform_parsed_files.py` is what was used to convert the
 | PDFs | Systems with native PDF support, or you want to parse from scratch | ~20GB |
 | Parsed JSON | Full structural information, coordinates | ~600MB |
 | Transformed TXT | LLM/agent consumption, cleaner text | ~200MB |
+
+#### Mapping source URLs to parsed files
+
+The `source_files` column in `officeqa.csv` provides the direct filenames (e.g., `treasury_bulletin_1941_01.txt`) for easy reference. If you need to understand the URL-to-filename conversion logic, here's how it works:
+
+**URL format:** `https://fraser.stlouisfed.org/title/treasury-bulletin-407/{MONTH}-{YEAR}-{ID}?page={PAGE}`
+
+**Filename format:** `treasury_bulletin_{YEAR}_{MONTH_NUM}.{ext}`
+
+**Month name to number mapping:**
+```
+january   → 01    july      → 07
+february  → 02    august    → 08
+march     → 03    september → 09
+april     → 04    october   → 10
+may       → 05    november  → 11
+june      → 06    december  → 12
+```
+
+**Example:**
+- URL: `https://fraser.stlouisfed.org/title/treasury-bulletin-407/january-1941-6529`
+- JSON file: `treasury_bulletins_parsed/jsons/treasury_bulletin_1941_01.json`
+- Text file: `treasury_bulletins_parsed/transformed/treasury_bulletin_1941_01.txt`
+- PDF file: `treasury_bulletin_pdfs/treasury_bulletin_1941_01.pdf`
 
 ### 4. Evaluate your model outputs
 ```python
