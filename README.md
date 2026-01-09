@@ -85,7 +85,18 @@ This will extract:
 - `jsons/*.json` - Full parsed documents with bounding boxes, tables as HTML, and element metadata
 - `transformed/*.txt` - Simplified text format with tables converted to Markdown (more readable for LLMs)
 
-Note that the script `transform_parsed_files.py` is what was used to convert the files from `jsons/` into the files in `transformed/`. This script is provided for convenience in case you wish to modify the ways in which files are transformed for agent consumption from the parsed documents.
+**Altenative data representations:**
+
+The representation of the parsed documents can impact model performance. For reproducibility, we include the transformed data we used in our original experiments here, as well as the script to produce these files from the parsed files in `jsons/`, which can be found in `treasury_bulletins_parsed/transform_scripts/transform_parsed_files.py`.
+
+New transformation scripts to adapt the raw parsed data can also be found and added to `treasury_bulletins_parsed/transform_scripts/`.
+
+For example, a new file (`transform_files_page_level.py`) was recently added to add page level markers in the transformed parsed documents.
+Data transformations can be run using:
+```
+cd treasury_bulletins_parsed/transform_scripts
+python transform_parsed_files.py
+```
 
 #### Which format should I use?
 | Format | Best for | Size |
