@@ -7,8 +7,8 @@ This script is provided for convenience in case you wish to
 modify the ways in which files are transformed for agent 
 consumption from the parsed documents.
 
-Input: treasury_bulletins_parsed/*.json
-Output: treasury_bulletins_markdown/*.txt
+Input: jsons/*.json
+Output: transformed/*.txt
 
 Behavior:
 - Non-table elements are written as plain text with original newlines.
@@ -41,8 +41,8 @@ def get_data_root() -> str:
 def get_input_output_dirs() -> tuple[str, str]:
     """Return input and output directories."""
     data_root = get_data_root()
-    input_dir = os.path.join(data_root, "treasury_bulletins_parsed")
-    output_dir = os.path.join(data_root, "treasury_bulletins_markdown")
+    input_dir = os.path.join(data_root, "jsons")
+    output_dir = os.path.join(data_root, "transformed")
     return input_dir, output_dir
 
 
