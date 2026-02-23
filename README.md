@@ -136,7 +136,7 @@ from reward import score_answer
 # Score a single prediction
 score = score_answer(
     ground_truth="123.45",
-    prediction="123.45",
+    predicted="123.45",
     tolerance=0.01  # 1% tolerance for numerical answers
 )
 print(f"Score: {score}")  # 1.0 for correct, 0.0 for incorrect
