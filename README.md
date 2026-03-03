@@ -8,7 +8,8 @@
 
 Additional details:
 * Questions require the **[U.S Treasury Bulletin](https://fraser.stlouisfed.org/title/treasury-bulletin-407?browse=1930s)** documents to answer
-* OfficeQA contains **133 hard** questions (`officeqa.csv`) and **246 total** questions (`officeqa_full.csv`, including 113 easy).
+* **OfficeQA-Pro** (`officeqa.csv`) contains **133 hard** questions.
+* **OfficeQA Full** (`officeqa_full.csv`) contains all **246** questions (133 hard + 113 easy).
 * Datasets released under **CC-BY-SA 4.0** and code and scripts under **Apache 2.0 License**.
 
 ## Overview
@@ -16,8 +17,8 @@ Additional details:
 OfficeQA evaluates how well AI systems can reason over real-world documents to answer complex questions. The benchmark uses historical U.S. Treasury Bulletin PDFs (1939-2025), which contain dense financial tables, charts, and text data.
 
 **Repository Contents:**
-- `officeqa.csv` - The benchmark dataset (133 hard questions)
-- `officeqa_full.csv` - The full benchmark dataset (all 246 questions: 133 hard + 113 easy)
+- `officeqa.csv` - **OfficeQA-Pro** (133 hard questions)
+- `officeqa_full.csv` - **OfficeQA Full** (all 246 questions: 133 hard + 113 easy)
 - `reward.py` - Evaluation script for scoring model outputs
 - `treasury_bulletin_pdfs/` - Original source PDF documents (696 files, ~20GB)
 - `treasury_bulletins_parsed/` - Parsed and transformed versions (see more details below)
@@ -45,10 +46,10 @@ NOTE: This may take a long time due to the large amount of PDF documents in `tre
 ```python
 import pandas as pd
 
-df = pd.read_csv('officeqa.csv')       # 133 hard questions
-df_full = pd.read_csv('officeqa_full.csv')  # all 246 questions
-print(f"Hard questions: {len(df)}")
-print(f"Full dataset: {len(df_full)}")
+df = pd.read_csv('officeqa.csv')       # OfficeQA-Pro (133 hard questions)
+df_full = pd.read_csv('officeqa_full.csv')  # OfficeQA Full (all 246 questions)
+print(f"OfficeQA-Pro: {len(df)}")
+print(f"OfficeQA Full: {len(df_full)}")
 ```
 
 ### 3. Choose your corpus
