@@ -11,6 +11,7 @@
 Additional details:
 * Questions require the **[U.S Treasury Bulletin](https://fraser.stlouisfed.org/title/treasury-bulletin-407?browse=1930s)** documents to answer
 * Datasets released under **CC-BY-SA 4.0** and code and scripts under **Apache 2.0 License**.
+* For more information, see the **[OfficeQA Technical Report](https://arxiv.org/abs/2603.08655)**
 
 ## Overview
 
