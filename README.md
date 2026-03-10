@@ -4,11 +4,12 @@
 </div>
 <p align="center"><img width="300" src="logo.png"/></p>
 
-**OfficeQA** is a benchmark by Databricks, built for evaluating model / agent performance on end to end **Grounded Reasoning** tasks.
+**OfficeQA** is a benchmark by Databricks, built for evaluating model / agent performance on end to end **Grounded Reasoning** tasks. The benchmark is split into two subsets:
+1. **OfficeQA Pro**: The default for evaluating frontier models (N=133)
+2. **OfficeQA Full**: A version of the benchmark containing additional easier questions to hillclimb systems on (N=246)
 
 Additional details:
 * Questions require the **[U.S Treasury Bulletin](https://fraser.stlouisfed.org/title/treasury-bulletin-407?browse=1930s)** documents to answer
-* OfficeQA contains 246 questions & corresponding ground truth answers.
 * Datasets released under **CC-BY-SA 4.0** and code and scripts under **Apache 2.0 License**.
 
 ## Overview
