@@ -43,8 +43,12 @@ def extract_numbers_with_context(text: str) -> list[tuple[float, str, bool, bool
     # Normalize text first
     text = normalize_text(text)
 
-    # Remove commas from numbers
-    text_no_commas = text.replace(',', '')
+    # Remove commas only from thousands-separated numbers (e.g. 1,000,000 -> 1000000)
+    text_no_commas = re.sub(
+        r'\d{1,3}(?:,\d{3})+(?:\.\d+)?',
+        lambda m: m.group().replace(',', ''),
+        text,
+    )
 
     numbers_with_context = []
 

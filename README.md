@@ -4,11 +4,12 @@
 </div>
 <p align="center"><img width="300" src="logo.png"/></p>
 
-**OfficeQA** is a benchmark by Databricks, built for evaluating model / agent performance on end to end **Grounded Reasoning** tasks.
+**OfficeQA** is a benchmark by Databricks, built for evaluating model / agent performance on end to end **Grounded Reasoning** tasks. The benchmark is split into two subsets:
+1. **OfficeQA Pro**: The default for evaluating frontier models (N=133)
+2. **OfficeQA Full**: A version of the benchmark containing additional easier questions to hillclimb systems on (N=246)
 
 Additional details:
 * Questions require the **[U.S Treasury Bulletin](https://fraser.stlouisfed.org/title/treasury-bulletin-407?browse=1930s)** documents to answer
-* OfficeQA Pro contains 133 questions & corresponding ground truth answers (hard subset). The full benchmark (OfficeQA Full) contains 246 questions.
 * Datasets released under **CC-BY-SA 4.0** and code and scripts under **Apache 2.0 License**.
 
 ## Overview
@@ -89,7 +90,18 @@ This will extract:
 - `jsons/*.json` - Full parsed documents with bounding boxes, tables as HTML, and element metadata
 - `transformed/*.txt` - Simplified text format with tables converted to Markdown (more readable for LLMs)
 
-Note that the script `transform_parsed_files.py` is what was used to convert the files from `jsons/` into the files in `transformed/`. This script is provided for convenience in case you wish to modify the ways in which files are transformed for agent consumption from the parsed documents.
+**Altenative data representations:**
+
+The representation of the parsed documents can impact model performance. For reproducibility, we include the transformed data we used in our original experiments here, as well as the script to produce these files from the parsed files in `jsons/`, which can be found in `treasury_bulletins_parsed/transform_scripts/transform_parsed_files.py`.
+
+New transformation scripts to adapt the raw parsed data can also be found and added to `treasury_bulletins_parsed/transform_scripts/`.
+
+For example, a new file (`transform_files_page_level.py`) was recently added to add page level markers in the transformed parsed documents.
+Data transformations can be run using:
+```
+cd treasury_bulletins_parsed/transform_scripts
+python transform_parsed_files.py
+```
 
 #### Which format should I use?
 | Format | Best for | Size |
@@ -129,7 +141,7 @@ from reward import score_answer
 # Score a single prediction
 score = score_answer(
     ground_truth="123.45",
-    prediction="123.45",
+    predicted="123.45",
     tolerance=0.01  # 1% tolerance for numerical answers
 )
 print(f"Score: {score}")  # 1.0 for correct, 0.0 for incorrect
