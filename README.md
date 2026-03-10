@@ -17,12 +17,13 @@ Additional details:
 OfficeQA evaluates how well AI systems can reason over real-world documents to answer complex questions. The benchmark uses historical U.S. Treasury Bulletin PDFs (1939-2025), which contain dense financial tables, charts, and text data.
 
 **Repository Contents:**
-- `officeqa.csv` - The benchmark dataset with 246 questions
+- `officeqa_pro.csv` - The default benchmark for evaluating frontier models (N=133)
+- `officeqa_full.csv` - A version of the benchmark containing additional easier questions to hillclimb systems on (N=246)
 - `reward.py` - Evaluation script for scoring model outputs
 - `treasury_bulletin_pdfs/` - Original source PDF documents (696 files, ~20GB)
 - `treasury_bulletins_parsed/` - Parsed and transformed versions (see more details below)
 
-**Dataset Schema (`officeqa.csv`):**
+**Dataset Schema (`officeqa_pro.csv` / `officeqa_full.csv`):**
 | Column | Description |
 |--------|-------------|
 | `uid` | Unique question identifier |
@@ -45,10 +46,13 @@ NOTE: This may take a long time due to the large amount of PDF documents in `tre
 ```python
 import pandas as pd
 
-df = pd.read_csv('officeqa.csv')
-print(f"Total questions: {len(df)}")
-print(f"Easy: {len(df[df['difficulty'] == 'easy'])}")
-print(f"Hard: {len(df[df['difficulty'] == 'hard'])}")
+# Default benchmark (hard questions only)
+df = pd.read_csv('officeqa_pro.csv')
+print(f"OfficeQA Pro questions: {len(df)}")  # 133
+
+# Full benchmark (includes easier questions)
+df_full = pd.read_csv('officeqa_full.csv')
+print(f"OfficeQA Full questions: {len(df_full)}")  # 246
 ```
 
 ### 3. Choose your corpus
@@ -108,7 +112,7 @@ python transform_parsed_files.py
 
 #### Mapping source URLs to parsed files
 
-The `source_files` column in `officeqa.csv` provides the direct filenames (e.g., `treasury_bulletin_1941_01.txt`) for easy reference. If you need to understand the URL-to-filename conversion logic, here's how it works:
+The `source_files` column in the dataset CSVs provides the direct filenames (e.g., `treasury_bulletin_1941_01.txt`) for easy reference. If you need to understand the URL-to-filename conversion logic, here's how it works:
 
 **URL format:** `https://fraser.stlouisfed.org/title/treasury-bulletin-407/{MONTH}-{YEAR}-{ID}?page={PAGE}`
 
