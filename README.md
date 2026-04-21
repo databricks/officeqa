@@ -34,6 +34,22 @@ OfficeQA evaluates how well AI systems can reason over real-world documents to a
 | `source_files` | Corresponding parsed filename(s) (e.g., `treasury_bulletin_1941_01.txt`) |
 | `difficulty` | `easy` or `hard` |
 
+## Results
+
+Headline results on **OfficeQA Pro** (N=133). See the [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655) for the full evaluation methodology and additional settings.
+
+### Agent Harness Performance
+
+End-to-end performance of frontier agents operating over the Treasury Bulletin corpus.
+
+![Agent Performance on OfficeQA Pro](figures/officeqa_pro_agent_harness_performance.png)
+
+### LLM with Oracle Page(s) + Web Search (PDF Only)
+
+LLM performance when provided the oracle page(s) needed to answer each question along with web search access, evaluated across varying absolute relative error tolerances.
+
+![Oracle Pages + Web Search — PDF Only](figures/officeqa_pro_llm_oracle_pdf_with_web_search.png)
+
 ## Getting Started
 
 ### 1. Clone the repository
