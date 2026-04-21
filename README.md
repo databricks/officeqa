@@ -48,25 +48,26 @@ Headline results on **OfficeQA Pro** (N=133). See the [OfficeQA Technical Report
 
 End-to-end performance of frontier agents operating over the Treasury Bulletin corpus.
 
+<p align="center">
+  <img src="figures/officeqa_pro_agent_harness_performance.png" width="700"/>
+</p>
+
 GPT-5.1 and Opus 4.5 Results included as reference point to results from the [OfficeQA blog](https://www.databricks.com/blog/introducing-officeqa-benchmark-end-to-end-grounded-reasoning) and re-run with latest OfficeQA Pro. Recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655). 
 
 GPT-5.4 and Opus 4.6 Results recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655).
 Opus 4.7 Results recorded on April 21 2026.
 
-Agent Performance on OfficeQA Pro
-
-![Agent Harness Performance](figures/officeqa_pro_agent_harness_performance.png)
 
 ### LLM with Oracle Page(s) + Web Search (PDF Only)
 
 LLM performance when provided the oracle page(s) needed to answer each question along with web search access, evaluated across varying absolute relative error tolerances.
 
+<p align="center">
+  <img src="figures/officeqa_pro_llm_oracle_pdf_with_web_search.png" width="700"/>
+</p>
+
 GPT-5.4 and Opus 4.6 Results recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655).
 Opus 4.7 Results recorded on April 21 2026.
-
-Oracle Pages + Web Search — PDF Only
-
-![LLM Oracle PDF + Web Search](figures/officeqa_pro_llm_oracle_pdf_with_web_search.png)
 
 ## Getting Started
 
