@@ -55,13 +55,18 @@ Opus 4.7 Results recorded on April 21 2026.
 
 Agent Performance on OfficeQA Pro
 
+![Agent Harness Performance](figures/officeqa_pro_agent_harness_performance.png)
+
 ### LLM with Oracle Page(s) + Web Search (PDF Only)
 
 LLM performance when provided the oracle page(s) needed to answer each question along with web search access, evaluated across varying absolute relative error tolerances.
 
 GPT-5.4 and Opus 4.6 Results recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655).
 Opus 4.7 Results recorded on April 21 2026.
+
 Oracle Pages + Web Search — PDF Only
+
+![LLM Oracle PDF + Web Search](figures/officeqa_pro_llm_oracle_pdf_with_web_search.png)
 
 ## Getting Started
 
