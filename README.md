@@ -2,7 +2,7 @@
 
 A Grounded Reasoning Benchmark by Databricks
 
-
+<p align="center"><img width="300" src="logo.png"/></p>
 
 **OfficeQA** is a benchmark by Databricks, built for evaluating model / agent performance on end to end **Grounded Reasoning** tasks. The benchmark is split into two subsets:
 
