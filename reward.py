@@ -266,7 +266,7 @@ def extract_final_answer(text: str) -> str:
     return text
 
 
-def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.05) -> tuple[bool, str]:
+def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.00) -> tuple[bool, str]:
     """
     Fuzzy match predicted answer against ground truth with robust handling.
 
@@ -284,7 +284,7 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
     if not ground_truth:
         raise ValueError("Ground truth cannot be empty")
     if not predicted:
-        raise ValueError("Predicted answer cannot be empty")
+        return False, "Predicted answer is empty - marked as incorrect"
     if not 0 <= tolerance <= 1:
         raise ValueError(f"Tolerance must be between 0 and 1, got {tolerance}")
 
@@ -444,5 +444,9 @@ def score_answer(ground_truth: str, predicted: str, tolerance: float = 0.00) -> 
     """
     Score the answer using robust fuzzy matching.
     """
-    is_correct, rationale = fuzzy_match_answer(ground_truth, predicted, tolerance)
+    try:
+        predicted = extract_final_answer(predicted)
+    except ValueError:
+        pass
+    is_correct, _ = fuzzy_match_answer(ground_truth, predicted, tolerance)
     return 1.0 if is_correct else 0.0
