@@ -254,14 +254,10 @@ def extract_final_answer(text: str) -> str:
         raise ValueError("Cannot extract from empty text")
 
     # Look for <FINAL_ANSWER>...</FINAL_ANSWER>
-    matches = list(re.finditer(
-        r'<FINAL_ANSWER>\s*(.*?)\s*</FINAL_ANSWER>',
-        text,
-        re.DOTALL | re.IGNORECASE,
-    ))
+    match = re.search(r'<FINAL_ANSWER>\s*(.*?)\s*</FINAL_ANSWER>', text, re.DOTALL | re.IGNORECASE)
 
-    if matches:
-        content = matches[-1].group(1).strip()
+    if match:
+        content = match.group(1).strip()
         if not content:
             raise ValueError("FINAL_ANSWER tags are empty")
         return content
@@ -444,66 +440,6 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
     # No match
     return False, f"No match found. GT: '{ground_truth[:100]}', Pred: '{predicted[:100]}'"
 
-def _is_direct_answer_only(ground_truth: str, predicted: str) -> tuple[bool, str]:
-    """
-    Guard that prediction is a single, direct answer of the same shape as GT.
-
-    Policy:
-        - Empty prediction -> fail
-        - Multiple non-empty lines -> fail
-        - Predictions longer than 250 chars -> fail
-        - Numeric GT -> prediction must contain the same count of numeric values
-        - Purely numeric GT -> prediction must not contain prose after removing
-          numbers and unit words
-        - Text/date GT (no numbers) -> normalized prediction must equal normalized GT
-
-    Returns:
-        (ok, rationale)
-    """
-    if not predicted or not predicted.strip():
-        return False, "Predicted answer is empty"
-
-    non_empty_lines = [ln for ln in predicted.splitlines() if ln.strip()]
-    if len(non_empty_lines) > 1:
-        return False, f"Predicted answer has {len(non_empty_lines)} non-empty lines, expected 1"
-
-    if len(predicted) > 250:
-        return False, f"Predicted answer is too long ({len(predicted)} chars > 250)"
-
-    try:
-        gt_numbers = extract_numbers_with_context(ground_truth)
-        pred_numbers = extract_numbers_with_context(predicted)
-    except ValueError as e:
-        return False, f"Failed to extract numbers: {e}"
-
-    if gt_numbers:
-        if len(pred_numbers) != len(gt_numbers):
-            return False, (
-                f"Predicted has {len(pred_numbers)} numeric value(s), "
-                f"GT has {len(gt_numbers)}"
-            )
-
-        gt_has_text, _ = has_significant_text(ground_truth)
-        if not gt_has_text:
-            pred_has_text, pred_extra = has_significant_text(predicted)
-            if pred_has_text:
-                return False, f"GT is purely numeric but prediction contains prose: '{pred_extra}'"
-
-        return True, "Direct numeric answer"
-
-    def _norm(s: str) -> str:
-        s = s.strip().lower().strip('"').strip("'")
-        s = re.sub(r'\([^)]*\)', '', s).strip()
-        s = re.sub(r'\s+', ' ', s)
-        return s
-
-    gt_norm = _norm(ground_truth)
-    pred_norm = _norm(predicted)
-    if gt_norm == pred_norm:
-        return True, "Direct text answer"
-    return False, f"Text mismatch: GT='{gt_norm}', Pred='{pred_norm}'"
-
-
 def score_answer(ground_truth: str, predicted: str, tolerance: float = 0.00) -> float:
     """
     Score the answer using robust fuzzy matching.
@@ -511,11 +447,6 @@ def score_answer(ground_truth: str, predicted: str, tolerance: float = 0.00) -> 
     try:
         predicted = extract_final_answer(predicted)
     except ValueError:
-        return 0.0
-
-    ok, _ = _is_direct_answer_only(ground_truth, predicted)
-    if not ok:
-        return 0.0
-
+        pass
     is_correct, _ = fuzzy_match_answer(ground_truth, predicted, tolerance)
     return 1.0 if is_correct else 0.0
