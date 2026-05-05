@@ -21,11 +21,8 @@ def normalize_text(text: str) -> str:
     if not text:
         raise ValueError("Cannot normalize empty or None text")
 
-    # Normalize Unicode minus to ASCII hyphen
     normalized = text.replace('\u2212', '-')
-    normalized = normalized.replace('−', '-')
-
-    return normalized
+    return re.sub(r'\s+', ' ', normalized).strip()
 
 
 def extract_numbers_with_context(text: str) -> list[tuple[float, str, bool, bool]]:
@@ -138,6 +135,10 @@ def normalize_number_with_units(number: float, context: str) -> tuple[float, str
         raise ValueError(f"Failed to normalize number {number} with context '{context}': {e}") from e
 
 
+def units_compatible(gt_unit: str | None, pred_unit: str | None) -> bool:
+    return gt_unit is None or pred_unit is None or gt_unit == pred_unit
+
+
 def is_likely_year(num: float) -> bool:
     """
     Check if a number is likely a year (1900-2100 range).
@@ -237,37 +238,30 @@ def check_text_overlap(gt_text: str, pred_text: str) -> tuple[bool, str]:
     return False, f"Text mismatch: GT='{gt_cleaned}', Pred='{pred_cleaned}'"
 
 
-def extract_final_answer(text: str) -> str:
-    """
-    Extract content from <FINAL_ANSWER> tags.
-
-    Args:
-        text: Full agent response that may contain FINAL_ANSWER tags
-
-    Returns:
-        Content inside FINAL_ANSWER tags, or original text if no tags found
-
-    Raises:
-        ValueError: If tags are malformed
-    """
+def extract_final_answer_from_xml(text: str) -> tuple[str, str | None]:
     if not text:
-        raise ValueError("Cannot extract from empty text")
+        return "", None
 
-    # Look for <FINAL_ANSWER>...</FINAL_ANSWER>
-    matches = list(re.finditer(
-        r'<FINAL_ANSWER>\s*(.*?)\s*</FINAL_ANSWER>',
-        text,
-        re.DOTALL | re.IGNORECASE,
-    ))
+    matches = list(
+        re.finditer(
+            r'<FINAL_ANSWER>\s*(.*?)\s*</FINAL_ANSWER>',
+            text,
+            re.DOTALL | re.IGNORECASE,
+        )
+    )
 
     if matches:
-        content = matches[-1].group(1).strip()
-        if not content:
-            raise ValueError("FINAL_ANSWER tags are empty")
-        return content
+        final_answer_match = matches[-1]
+        final_answer = final_answer_match.group(1).strip()
+        reasoning_before = text[: final_answer_match.start()].strip()
+        return final_answer, reasoning_before if reasoning_before else None
 
-    # No tags found - return original text
-    return text
+    return text, None
+
+
+def extract_final_answer(text: str) -> str:
+    final_answer, _ = extract_final_answer_from_xml(text)
+    return final_answer
 
 
 def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.00) -> tuple[bool, str]:
@@ -291,6 +285,9 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
         return False, "Predicted answer is empty - marked as incorrect"
     if not 0 <= tolerance <= 1:
         raise ValueError(f"Tolerance must be between 0 and 1, got {tolerance}")
+
+    if "unable to determine" in predicted.lower():
+        return False, "Answer contains 'Unable to determine' - marked as incorrect"
 
     try:
         # Extract numbers with context
@@ -328,6 +325,9 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
                         pred_base, pred_unit = normalize_number_with_units(pred_val, pred_context)
                     except Exception as e:
                         raise ValueError(f"Failed to normalize prediction number {pred_val}: {e}") from e
+
+                    if not units_compatible(gt_unit, pred_unit):
+                        continue
 
                     # Compare base numbers
                     if gt_base == 0:
@@ -377,6 +377,7 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
             best_match = None
             best_diff = float('inf')
             best_pred_info = None
+            unit_mismatches = []
 
             for pred_val, pred_context in pred_numbers:
                 # Skip likely year numbers only if GT is clearly not a year-related answer
@@ -387,6 +388,10 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
                     pred_base, pred_unit = normalize_number_with_units(pred_val, pred_context)
                 except Exception as e:
                     raise ValueError(f"Failed to normalize prediction number: {e}") from e
+
+                if not units_compatible(gt_unit, pred_unit):
+                    unit_mismatches.append((pred_base, pred_unit))
+                    continue
 
                 # Compare base numbers (after unit normalization)
                 # e.g., GT "543 million" → base=543, pred "543" → base=543 ✅
@@ -419,8 +424,10 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
             # No match found
             if best_match is not None:
                 return False, f"No match: GT={gt_base} ({gt_unit or 'no unit'}), Closest={best_pred_info[0]} ({best_pred_info[1] or 'no unit'}), Diff={best_diff*100:.2f}%"
-            else:
-                return False, f"No valid numbers found in prediction (filtered out years: {[n for n, _ in pred_numbers[:5]]})"
+            if unit_mismatches:
+                pred_units = [unit or "no unit" for _, unit in unit_mismatches[:5]]
+                return False, f"No match: explicit unit mismatch. GT unit={gt_unit or 'no unit'}, Pred units={pred_units}"
+            return False, f"No valid numbers found in prediction (filtered out years: {[n for n, _ in pred_numbers[:5]]})"
 
     # Case 2: Text-based comparison (case-insensitive, strip whitespace and quotes)
     # For dates and text, must be EXACT match (case-insensitive)
@@ -430,8 +437,8 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
     # Strip parenthetical content like (OASI), (FY), etc. to handle abbreviations
     # e.g., "Federal Old-Age and Survivors Insurance (OASI) Trust Fund"
     #    -> "Federal Old-Age and Survivors Insurance Trust Fund"
-    gt_clean = re.sub(r'\([^)]*\)', '', gt_clean).strip()
-    pred_clean = re.sub(r'\([^)]*\)', '', pred_clean).strip()
+    gt_clean = re.sub(r'\s+', ' ', re.sub(r'\([^)]*\)', '', gt_clean)).strip()
+    pred_clean = re.sub(r'\s+', ' ', re.sub(r'\([^)]*\)', '', pred_clean)).strip()
 
     # Check if ground truth appears in prediction
     if gt_clean in pred_clean:
@@ -443,6 +450,13 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
 
     # No match
     return False, f"No match found. GT: '{ground_truth[:100]}', Pred: '{predicted[:100]}'"
+
+def _normalize_direct_text_answer(text: str) -> str:
+    cleaned = text.strip().lower().strip('"').strip("'")
+    cleaned = re.sub(r'\([^)]*\)', '', cleaned).strip()
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    return cleaned
+
 
 def _is_direct_answer_only(ground_truth: str, predicted: str) -> tuple[bool, str]:
     """
@@ -460,48 +474,47 @@ def _is_direct_answer_only(ground_truth: str, predicted: str) -> tuple[bool, str
     Returns:
         (ok, rationale)
     """
-    if not predicted or not predicted.strip():
+    predicted = predicted.strip()
+    if not predicted:
         return False, "Predicted answer is empty"
 
-    non_empty_lines = [ln for ln in predicted.splitlines() if ln.strip()]
-    if len(non_empty_lines) > 1:
-        return False, f"Predicted answer has {len(non_empty_lines)} non-empty lines, expected 1"
+    nonempty_lines = [line for line in predicted.splitlines() if line.strip()]
+    if len(nonempty_lines) > 1:
+        return False, "Predicted answer spans multiple non-empty lines"
 
     if len(predicted) > 250:
-        return False, f"Predicted answer is too long ({len(predicted)} chars > 250)"
+        return False, "Predicted answer is too long to be a direct answer"
 
-    try:
-        gt_numbers = extract_numbers_with_context(ground_truth)
-        pred_numbers = extract_numbers_with_context(predicted)
-    except ValueError as e:
-        return False, f"Failed to extract numbers: {e}"
+    gt_numbers_with_context = extract_numbers_with_context(ground_truth)
+    pred_numbers_with_context = extract_numbers_with_context(predicted)
+
+    gt_numbers = [(num, ctx) for num, ctx, _, _ in gt_numbers_with_context]
+    pred_numbers = [(num, ctx) for num, ctx, _, _ in pred_numbers_with_context]
 
     if gt_numbers:
         if len(pred_numbers) != len(gt_numbers):
             return False, (
-                f"Predicted has {len(pred_numbers)} numeric value(s), "
-                f"GT has {len(gt_numbers)}"
+                "Predicted answer must contain exactly the expected answer numbers"
             )
 
         gt_has_text, _ = has_significant_text(ground_truth)
-        if not gt_has_text:
-            pred_has_text, pred_extra = has_significant_text(predicted)
-            if pred_has_text:
-                return False, f"GT is purely numeric but prediction contains prose: '{pred_extra}'"
+        pred_has_text, pred_text = has_significant_text(predicted)
+        if not gt_has_text and pred_has_text:
+            return (
+                False,
+                "Predicted answer has prose outside the answer value "
+                f"(extra text after removing numbers/units: '{pred_text}')",
+            )
 
-        return True, "Direct numeric answer"
+        return True, "Direct answer only"
 
-    def _norm(s: str) -> str:
-        s = s.strip().lower().strip('"').strip("'")
-        s = re.sub(r'\([^)]*\)', '', s).strip()
-        s = re.sub(r'\s+', ' ', s)
-        return s
+    if pred_numbers:
+        return False, "Prediction contains numbers but ground truth is text-only"
 
-    gt_norm = _norm(ground_truth)
-    pred_norm = _norm(predicted)
-    if gt_norm == pred_norm:
-        return True, "Direct text answer"
-    return False, f"Text mismatch: GT='{gt_norm}', Pred='{pred_norm}'"
+    if _normalize_direct_text_answer(ground_truth) != _normalize_direct_text_answer(predicted):
+        return False, "Text answer must match the expected answer text exactly"
+
+    return True, "Direct answer only"
 
 
 def score_answer(ground_truth: str, predicted: str, tolerance: float = 0.00) -> float:
@@ -509,13 +522,17 @@ def score_answer(ground_truth: str, predicted: str, tolerance: float = 0.00) -> 
     Score the answer using robust fuzzy matching.
     """
     try:
-        predicted = extract_final_answer(predicted)
-    except ValueError:
+        predicted, _ = extract_final_answer_from_xml(predicted)
+    except Exception:
         return 0.0
 
-    ok, _ = _is_direct_answer_only(ground_truth, predicted)
-    if not ok:
+    try:
+        ok, _ = _is_direct_answer_only(ground_truth, predicted)
+        if not ok:
+            return 0.0
+
+        is_correct, _ = fuzzy_match_answer(ground_truth, predicted, tolerance)
+    except Exception:
         return 0.0
 
-    is_correct, _ = fuzzy_match_answer(ground_truth, predicted, tolerance)
     return 1.0 if is_correct else 0.0
