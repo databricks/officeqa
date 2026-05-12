@@ -17,9 +17,9 @@ Additional details:
 
 ### Data Access
 
-As of May 2026, all large files (benchmark CSVs, Treasury Bulletin PDFs, and parsed docs) have been moved from this GitHub repo to [Hugging Face](https://huggingface.co/datasets/databricks/officeqa). The CSVs are gated — request access on Hugging Face to get the benchmark questions and answers.
+As of May 2026, all large files (benchmark CSVs, Treasury Bulletin PDFs, and parsed docs) have been moved from this GitHub repo to [Hugging Face](https://huggingface.co/datasets/databricks/officeqa). The CSVs are gated to ensure agents browsing the web do not have access— request access on Hugging Face to get the benchmark questions and answers.
 
-To load the benchmark data:
+Once you've requested and been granted access, you can load the benchmark data:
 ```python
 from datasets import load_dataset
 # Authenticate first: huggingface_hub.login() or set HF_TOKEN env var
@@ -35,9 +35,7 @@ OfficeQA evaluates how well AI systems can reason over real-world documents to a
 | File/Dir | Description |
 |---|---|
 | `reward.py` | Evaluation script for scoring model outputs |
-| `treasury_bulletins_parsed/transform_scripts/` | Scripts to transform parsed JSON → text |
-| `treasury_bulletins_parsed/unzip.py`, `zip.py` | Utility scripts |
-| `ocr_removal.ipynb` | Notebook to regenerate no-OCR PDFs |
+| `corpus_scripts/` | Scripts and notebooks for working with the Treasury Bulletin corpus |
 
 **All benchmark data (CSVs, PDFs, parsed docs) is on [Hugging Face](https://huggingface.co/datasets/databricks/officeqa).**
 
@@ -108,6 +106,8 @@ cd officeqa
 
 ### 3. Download the corpus (from Hugging Face)
 
+We recommend using parsed txt files found here:
+
 ```python
 from huggingface_hub import snapshot_download
 
@@ -117,7 +117,11 @@ local_dir = snapshot_download(
     repo_type="dataset",
     allow_patterns="treasury_bulletins_parsed/transformed/*.txt",
 )
+```
 
+If you'd like to use the raw json parse or original PDFs, you can also download them here:
+
+```
 # Download parsed JSON docs (~730MB, with bounding boxes, tables, metadata)
 local_dir = snapshot_download(
     repo_id="databricks/officeqa",
@@ -133,28 +137,38 @@ local_dir = snapshot_download(
 )
 ```
 
-#### Which format should I use?
-
 | Format          | Best for                                                           | Size   |
 | --------------- | ------------------------------------------------------------------ | ------ |
 | PDFs            | Systems with native PDF support, or you want to parse from scratch | ~4GB   |
 | Parsed JSON     | Full structural information, coordinates                           | ~730MB |
 | Transformed TXT | LLM/agent consumption, cleaner text                                | ~460MB |
 
-#### Alternative data representations
+See [`corpus_scripts/`](corpus_scripts/) for scripts to create alternative text representations from the parsed JSONs, and to visualize the parsed bounding boxes on top of the PDFs.
 
-The representation of the parsed documents can impact model performance. For reproducibility, we include the transformed data we used in our original experiments, as well as the script to produce these files from the parsed files in `jsons/`, which can be found in `treasury_bulletins_parsed/transform_scripts/transform_parsed_files.py`.
+### 4. Evaluate your model outputs
 
-New transformation scripts to adapt the raw parsed data can also be added to `treasury_bulletins_parsed/transform_scripts/`.
+```python
+from reward import score_answer
 
-Data transformations can be run using:
-
+# Score a single prediction
+score = score_answer(
+    ground_truth="123.45",
+    predicted="123.45",
+    tolerance=0.01  # 1% tolerance for numerical answers
+)
+print(f"Score: {score}")  # 1.0 for correct, 0.0 for incorrect
 ```
-cd treasury_bulletins_parsed/transform_scripts
-python transform_parsed_files.py
-```
 
-#### Mapping source URLs to parsed files
+The `reward.py` script provides fuzzy matching for numerical answers with configurable tolerance levels:
+
+- `0.0%` - Exact match
+- `0.1%` - Within 0.1% relative error
+- `1.0%` - Within 1% relative error
+- `5.0%` - Within 5% relative error
+etc.
+
+
+## Mapping source URLs to parsed files
 
 The `source_files` column in the dataset CSVs provides the direct filenames (e.g., `treasury_bulletin_1941_01.txt`) for easy reference. Here's how the URL-to-filename conversion works:
 
@@ -179,28 +193,3 @@ june      → 06    december  → 12
 - JSON file: `treasury_bulletins_parsed/jsons/treasury_bulletin_1941_01.json`
 - Text file: `treasury_bulletins_parsed/transformed/treasury_bulletin_1941_01.txt`
 - PDF file: `treasury_bulletin_pdfs/treasury_bulletin_1941_01.pdf`
-
-### 4. Evaluate your model outputs
-
-```python
-from reward import score_answer
-
-# Score a single prediction
-score = score_answer(
-    ground_truth="123.45",
-    predicted="123.45",
-    tolerance=0.01  # 1% tolerance for numerical answers
-)
-print(f"Score: {score}")  # 1.0 for correct, 0.0 for incorrect
-```
-
-## Evaluation
-
-The `reward.py` script provides fuzzy matching for numerical answers with configurable tolerance levels:
-
-- `0.0%` - Exact match
-- `0.1%` - Within 0.1% relative error
-- `1.0%` - Within 1% relative error
-- `5.0%` - Within 5% relative error
-etc.
-
