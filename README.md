@@ -15,17 +15,31 @@ Additional details:
 - Datasets released under **CC-BY-SA 4.0** and code and scripts under **Apache 2.0 License**.
 - For more information, see the **[OfficeQA Technical Report](https://arxiv.org/abs/2603.08655)**
 
+### Data Access
+
+As of May 2026, all large files (benchmark CSVs, Treasury Bulletin PDFs, and parsed docs) have been moved from this GitHub repo to [Hugging Face](https://huggingface.co/datasets/databricks/officeqa). The CSVs are gated — request access on Hugging Face to get the benchmark questions and answers.
+
+To load the benchmark data:
+```python
+from datasets import load_dataset
+# Authenticate first: huggingface_hub.login() or set HF_TOKEN env var
+dataset = load_dataset("databricks/officeqa", data_files="officeqa_pro.csv", split="train")
+```
+
 ## Overview
 
 OfficeQA evaluates how well AI systems can reason over real-world documents to answer complex questions. The benchmark uses historical U.S. Treasury Bulletin PDFs (1939-2025), which contain dense financial tables, charts, and text data.
 
 **Repository Contents:**
 
-- `officeqa_pro.csv` - The default benchmark for evaluating frontier models (N=133)
-- `officeqa_full.csv` - A version of the benchmark containing additional easier questions to hillclimb systems on (N=246)
-- `reward.py` - Evaluation script for scoring model outputs
-- `treasury_bulletin_pdfs/` - Original source PDF documents (696 files, ~20GB)
-- `treasury_bulletins_parsed/` - Parsed and transformed versions (see more details below)
+| File/Dir | Description |
+|---|---|
+| `reward.py` | Evaluation script for scoring model outputs |
+| `treasury_bulletins_parsed/transform_scripts/` | Scripts to transform parsed JSON → text |
+| `treasury_bulletins_parsed/unzip.py`, `zip.py` | Utility scripts |
+| `ocr_removal.ipynb` | Notebook to regenerate no-OCR PDFs |
+
+**All benchmark data (CSVs, PDFs, parsed docs) is on [Hugging Face](https://huggingface.co/datasets/databricks/officeqa).**
 
 **Dataset Schema (**`officeqa_pro.csv` **/** `officeqa_full.csv`**):**
 
@@ -52,7 +66,7 @@ End-to-end performance of frontier agents operating over the Treasury Bulletin c
   <img src="figures/officeqa_pro_agent_harness_performance.png" width="700"/>
 </p>
 
-GPT-5.1 and Opus 4.5 Results included as reference point to results from the [OfficeQA blog](https://www.databricks.com/blog/introducing-officeqa-benchmark-end-to-end-grounded-reasoning) and re-run with latest OfficeQA Pro. Recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655). 
+GPT-5.1 and Opus 4.5 Results included as reference point to results from the [OfficeQA blog](https://www.databricks.com/blog/introducing-officeqa-benchmark-end-to-end-grounded-reasoning) and re-run with latest OfficeQA Pro. Recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655).
 
 GPT-5.4 and Opus 4.6 Results recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655).
 Opus 4.7 Results recorded on April 21 2026.
@@ -71,77 +85,68 @@ Opus 4.7 Results recorded on April 21 2026.
 
 ## Getting Started
 
-### 1. Clone the repository
+### 1. Load the benchmark questions (from Hugging Face)
+
+```python
+from datasets import load_dataset
+# Authenticate first (dataset is gated)
+# huggingface_hub.login() or set HF_TOKEN env var
+
+# Pro subset — default for evaluating frontier models
+dataset = load_dataset("databricks/officeqa", data_files="officeqa_pro.csv", split="train")
+
+# Full benchmark — includes easier questions for hillclimbing
+dataset = load_dataset("databricks/officeqa", data_files="officeqa_full.csv", split="train")
+```
+
+### 2. Clone the code repository (for reward.py and scripts)
 
 ```bash
 git clone https://github.com/databricks/officeqa.git
 cd officeqa
 ```
 
-NOTE: This may take a long time due to the large amount of PDF documents in `treasury_bulletin_pdfs`.
-
-### 2. Load the dataset
+### 3. Download the corpus (from Hugging Face)
 
 ```python
-import pandas as pd
+from huggingface_hub import snapshot_download
 
-# Default benchmark (hard questions only)
-df = pd.read_csv('officeqa_pro.csv')
-print(f"OfficeQA Pro questions: {len(df)}")  # 133
+# Download transformed text (recommended for LLM/RAG workflows, ~460MB)
+local_dir = snapshot_download(
+    repo_id="databricks/officeqa",
+    repo_type="dataset",
+    allow_patterns="treasury_bulletins_parsed/transformed/*.txt",
+)
 
-# Full benchmark (includes easier questions)
-df_full = pd.read_csv('officeqa_full.csv')
-print(f"OfficeQA Full questions: {len(df_full)}")  # 246
+# Download parsed JSON docs (~730MB, with bounding boxes, tables, metadata)
+local_dir = snapshot_download(
+    repo_id="databricks/officeqa",
+    repo_type="dataset",
+    allow_patterns="treasury_bulletins_parsed/jsons/*.json",
+)
+
+# Download original PDFs (~4GB)
+local_dir = snapshot_download(
+    repo_id="databricks/officeqa",
+    repo_type="dataset",
+    allow_patterns="treasury_bulletin_pdfs/*",
+)
 ```
 
-### 3. Choose your corpus
+#### Which format should I use?
 
-We provide the Treasury Bulletin corpus in multiple formats:
+| Format          | Best for                                                           | Size   |
+| --------------- | ------------------------------------------------------------------ | ------ |
+| PDFs            | Systems with native PDF support, or you want to parse from scratch | ~4GB   |
+| Parsed JSON     | Full structural information, coordinates                           | ~730MB |
+| Transformed TXT | LLM/agent consumption, cleaner text                                | ~460MB |
 
-#### Option A: Original PDFs (`treasury_bulletin_pdfs/`)
+#### Alternative data representations
 
-The raw PDF documents as downloaded from the Federal Reserve Archive. Use these if your system can process PDFs directly.
+The representation of the parsed documents can impact model performance. For reproducibility, we include the transformed data we used in our original experiments, as well as the script to produce these files from the parsed files in `jsons/`, which can be found in `treasury_bulletins_parsed/transform_scripts/transform_parsed_files.py`.
 
-- **696 PDF files** covering 1939-2025
-- Total size: ~20GB
+New transformation scripts to adapt the raw parsed data can also be added to `treasury_bulletins_parsed/transform_scripts/`.
 
-#### Option B: Parsed Documents (`treasury_bulletins_parsed/`)
-
-Pre-parsed versions of the PDFs. The files are distributed as zip archives to stay within Git file size limits.
-
-**Structure:**
-
-```
-treasury_bulletins_parsed/
-├── jsons/                    # Parsed JSON files with full structure
-│   ├── treasury_bulletins_parsed_part001.zip
-│   ├── treasury_bulletins_parsed_part002.zip
-│   └── treasury_bulletins_parsed_part003.zip
-├── transformed/              # Agent-friendly text format
-│   └── treasury_bulletins_transformed.zip
-├── unzip.py                  # Script to extract all files
-└── transform_parsed_files.py # Script to transform JSON → text
-```
-
-**To extract the files:**
-
-```bash
-cd treasury_bulletins_parsed
-python unzip.py
-```
-
-This will extract:
-
-- `jsons/*.json` - Full parsed documents with bounding boxes, tables as HTML, and element metadata
-- `transformed/*.txt` - Simplified text format with tables converted to Markdown (more readable for LLMs)
-
-**Altenative data representations:**
-
-The representation of the parsed documents can impact model performance. For reproducibility, we include the transformed data we used in our original experiments here, as well as the script to produce these files from the parsed files in `jsons/`, which can be found in `treasury_bulletins_parsed/transform_scripts/transform_parsed_files.py`.
-
-New transformation scripts to adapt the raw parsed data can also be found and added to `treasury_bulletins_parsed/transform_scripts/`.
-
-For example, a new file (`transform_files_page_level.py`) was recently added to add page level markers in the transformed parsed documents.  
 Data transformations can be run using:
 
 ```
@@ -149,19 +154,9 @@ cd treasury_bulletins_parsed/transform_scripts
 python transform_parsed_files.py
 ```
 
-#### Which format should I use?
-
-
-| Format          | Best for                                                           | Size   |
-| --------------- | ------------------------------------------------------------------ | ------ |
-| PDFs            | Systems with native PDF support, or you want to parse from scratch | ~20GB  |
-| Parsed JSON     | Full structural information, coordinates                           | ~600MB |
-| Transformed TXT | LLM/agent consumption, cleaner text                                | ~200MB |
-
-
 #### Mapping source URLs to parsed files
 
-The `source_files` column in the dataset CSVs provides the direct filenames (e.g., `treasury_bulletin_1941_01.txt`) for easy reference. If you need to understand the URL-to-filename conversion logic, here's how it works:
+The `source_files` column in the dataset CSVs provides the direct filenames (e.g., `treasury_bulletin_1941_01.txt`) for easy reference. Here's how the URL-to-filename conversion works:
 
 **URL format:** `https://fraser.stlouisfed.org/title/treasury-bulletin-407/{MONTH}-{YEAR}-{ID}?page={PAGE}`
 
@@ -206,6 +201,6 @@ The `reward.py` script provides fuzzy matching for numerical answers with config
 - `0.0%` - Exact match
 - `0.1%` - Within 0.1% relative error
 - `1.0%` - Within 1% relative error
-- `5.0%` - Within 5% relative error  
+- `5.0%` - Within 5% relative error
 etc.
 
