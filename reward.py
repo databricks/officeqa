@@ -27,6 +27,8 @@ def normalize_text(text: str) -> str:
 
 _CURRENCY_SYMBOLS = r"$£€¥₹¢₩₽"
 _NUMBER_BODY = r"\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?"
+_VALID_THOUSANDS_RE = r"(?<![\d.])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?!\d)"
+_LIST_NUMBER_RE = re.compile(r"-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?")
 
 
 def _normalize_numeric_formatting(text: str) -> str:
@@ -63,7 +65,7 @@ def extract_numbers_with_context(text: str) -> list[tuple[float, str, bool, bool
 
     # Remove commas only from thousands-separated numbers (e.g. 1,000,000 -> 1000000)
     text_no_commas = re.sub(
-        r'\d{1,3}(?:,\d{3})+(?:\.\d+)?',
+        _VALID_THOUSANDS_RE,
         lambda m: m.group().replace(',', ''),
         text,
     )
@@ -99,6 +101,169 @@ def extract_numbers_with_context(text: str) -> list[tuple[float, str, bool, bool
         numbers_with_context.append((num, context, has_percent, is_negative))
 
     return numbers_with_context
+
+
+def _single_bracketed_list_body(text: str) -> str | None:
+    """Return the body of one bracketed list if surrounding text is label-like."""
+    stripped = normalize_text(text)
+    matches = list(re.finditer(r"\[([^\[\]]+)\]", stripped))
+    if len(matches) != 1:
+        return None
+
+    match = matches[0]
+    outside = (stripped[: match.start()] + stripped[match.end() :]).strip()
+    if re.search(r"\d", outside):
+        return None
+    return match.group(1)
+
+
+def _numeric_list_body(text: str) -> str:
+    return _single_bracketed_list_body(text) or normalize_text(text)
+
+
+def _parse_numeric_list_item(raw_item: str) -> float | None:
+    item = raw_item.strip()
+    if not item:
+        return None
+    if "," in item and re.search(r"\s,|,\s", item):
+        return None
+
+    item = _normalize_numeric_formatting(normalize_text(item))
+    if _LIST_NUMBER_RE.fullmatch(item) is None:
+        return None
+
+    return float(item.rstrip("%").replace(",", ""))
+
+
+def _comma_chunk_spans(body: str) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
+    start = 0
+    for match in re.finditer(",", body):
+        spans.append((start, match.start()))
+        start = match.end()
+    spans.append((start, len(body)))
+    return spans
+
+
+def _segment_numeric_list_values(text: str, expected_len: int) -> list[list[float]]:
+    """
+    Parse comma-delimited numeric-list candidates with exactly expected_len items.
+
+    This intentionally runs only in the gold-list path. It lets a prediction
+    like ``[8,152,260]`` match a two-item gold list ``[8, 152260]`` without
+    changing global scalar parsing of the valid thousands number ``8,152,260``.
+    """
+    if expected_len < 2:
+        return []
+
+    body = _numeric_list_body(text)
+    spans = _comma_chunk_spans(body)
+    if len(spans) < expected_len:
+        return []
+
+    memo: dict[tuple[int, int], list[list[float]]] = {}
+
+    def dfs(chunk_index: int, remaining: int) -> list[list[float]]:
+        key = (chunk_index, remaining)
+        if key in memo:
+            return memo[key]
+
+        if remaining == 0:
+            return [[]] if chunk_index == len(spans) else []
+
+        results: list[list[float]] = []
+        max_end = len(spans) - remaining + 1
+        for end_index in range(chunk_index + 1, max_end + 1):
+            start = spans[chunk_index][0]
+            end = spans[end_index - 1][1]
+            value = _parse_numeric_list_item(body[start:end])
+            if value is None:
+                continue
+            for tail in dfs(end_index, remaining - 1):
+                results.append([value, *tail])
+
+        memo[key] = results
+        return results
+
+    deduped: list[list[float]] = []
+    seen: set[tuple[float, ...]] = set()
+    for values in dfs(0, expected_len):
+        key = tuple(values)
+        if key not in seen:
+            deduped.append(values)
+            seen.add(key)
+    return deduped
+
+
+def _ground_truth_bracketed_numeric_list(
+    ground_truth: str,
+    gt_numbers_with_context: list[tuple[float, str, bool, bool]],
+) -> list[tuple[float, str]] | None:
+    body = _single_bracketed_list_body(ground_truth)
+    if body is None:
+        return None
+
+    gt_numbers = [(num, ctx) for num, ctx, _, _ in gt_numbers_with_context]
+    if len(gt_numbers) < 2:
+        return None
+
+    candidate_values = _segment_numeric_list_values(body, len(gt_numbers))
+    gt_values = [num for num, _ in gt_numbers]
+    if not any(candidate == gt_values for candidate in candidate_values):
+        return None
+
+    return gt_numbers
+
+
+def _ordered_numbers_match(
+    gt_numbers: list[tuple[float, str]],
+    pred_numbers: list[tuple[float, str]],
+    tolerance: float,
+) -> bool:
+    if len(gt_numbers) != len(pred_numbers):
+        return False
+
+    for (gt_val, gt_context), (pred_val, pred_context) in zip(gt_numbers, pred_numbers):
+        gt_base, gt_unit = normalize_number_with_units(gt_val, gt_context)
+        pred_base, pred_unit = normalize_number_with_units(pred_val, pred_context)
+        if not units_compatible(gt_unit, pred_unit):
+            return False
+        if gt_base == 0:
+            if pred_base != 0:
+                return False
+            continue
+        if abs(gt_base - pred_base) / abs(gt_base) > tolerance:
+            return False
+
+    return True
+
+
+def _match_bracketed_numeric_list(
+    ground_truth: str,
+    predicted: str,
+    gt_numbers_with_context: list[tuple[float, str, bool, bool]],
+    pred_numbers_with_context: list[tuple[float, str, bool, bool]],
+    tolerance: float,
+) -> tuple[bool, str] | None:
+    gt_numbers = _ground_truth_bracketed_numeric_list(ground_truth, gt_numbers_with_context)
+    if gt_numbers is None:
+        return None
+
+    segmented_candidates = _segment_numeric_list_values(predicted, len(gt_numbers))
+    for values in segmented_candidates:
+        pred_candidate = [(value, "") for value in values]
+        if _ordered_numbers_match(gt_numbers, pred_candidate, tolerance):
+            return True, f"Ordered list match: segmented prediction into {len(values)} numbers"
+
+    pred_numbers = [(num, ctx) for num, ctx, _, _ in pred_numbers_with_context]
+    pred_numbers = _filter_context_years_for_direct_answer(gt_numbers, pred_numbers, ground_truth)
+    if _ordered_numbers_match(gt_numbers, pred_numbers, tolerance):
+        return True, f"Ordered list match: All {len(gt_numbers)} numbers matched in order"
+
+    expected = [num for num, _ in gt_numbers]
+    observed = [[num for num, _ in pred_numbers]]
+    observed.extend(segmented_candidates)
+    return False, f"Ordered list mismatch: expected {expected}, observed candidates {observed[:5]}"
 
 
 def detect_unit_in_context(context: str) -> tuple[str | None, float]:
@@ -323,6 +488,16 @@ def fuzzy_match_answer(ground_truth: str, predicted: str, tolerance: float = 0.0
 
     # Case 1: Both have numbers
     if gt_numbers and pred_numbers:
+        ordered_list_match = _match_bracketed_numeric_list(
+            ground_truth,
+            predicted,
+            gt_numbers_with_context,
+            pred_numbers_with_context,
+            tolerance,
+        )
+        if ordered_list_match is not None:
+            return ordered_list_match
+
         # Check if GT has multiple numbers (list-like answer)
         if len(gt_numbers) > 1:
             # Multi-number answer: ALL GT numbers must appear in prediction
@@ -479,6 +654,30 @@ def _normalize_direct_text_answer(text: str) -> str:
     return cleaned
 
 
+def _filter_context_years_for_direct_answer(
+    gt_numbers: list[tuple[float, str]],
+    pred_numbers: list[tuple[float, str]],
+    ground_truth: str,
+) -> list[tuple[float, str]]:
+    if not gt_numbers:
+        return pred_numbers
+
+    gt_has_text, _ = has_significant_text(ground_truth)
+    if len(gt_numbers) == 1:
+        gt_val, _ = gt_numbers[0]
+        should_filter_years = not (is_likely_year(gt_val) or gt_has_text)
+    else:
+        should_filter_years = not any(is_likely_year(gt_val) for gt_val, _ in gt_numbers)
+
+    if not should_filter_years:
+        return pred_numbers
+
+    return [(pred_val, pred_context) for pred_val, pred_context in pred_numbers if not is_likely_year(pred_val)]
+
+
+_INLINE_MARKUP_RE = re.compile(r"<[^>]*>")
+
+
 def _is_direct_answer_only(ground_truth: str, predicted: str) -> tuple[bool, str]:
     """
     Guard that prediction is a single, direct answer of the same shape as GT.
@@ -513,19 +712,20 @@ def _is_direct_answer_only(ground_truth: str, predicted: str) -> tuple[bool, str
     pred_numbers = [(num, ctx) for num, ctx, _, _ in pred_numbers_with_context]
 
     if gt_numbers:
+        pred_numbers = _filter_context_years_for_direct_answer(gt_numbers, pred_numbers, ground_truth)
         if len(pred_numbers) != len(gt_numbers):
-            return False, (
-                "Predicted answer must contain exactly the expected answer numbers"
+            gt_list_numbers = _ground_truth_bracketed_numeric_list(ground_truth, gt_numbers_with_context)
+            list_arity_ok = gt_list_numbers is not None and bool(
+                _segment_numeric_list_values(predicted, len(gt_list_numbers))
             )
+            if not list_arity_ok:
+                return (
+                    False,
+                    "Predicted answer must contain exactly the expected answer numbers",
+                )
 
-        gt_has_text, _ = has_significant_text(ground_truth)
-        pred_has_text, pred_text = has_significant_text(predicted)
-        if not gt_has_text and pred_has_text:
-            return (
-                False,
-                "Predicted answer has prose outside the answer value "
-                f"(extra text after removing numbers/units: '{pred_text}')",
-            )
+        if _INLINE_MARKUP_RE.search(predicted):
+            return False, "Predicted answer contains markup outside the answer value"
 
         return True, "Direct answer only"
 
