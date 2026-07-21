@@ -69,6 +69,8 @@ GPT-5.1 and Opus 4.5 Results included as reference point to results from the [Of
 GPT-5.4 and Opus 4.6 Results recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655).
 Opus 4.7 Results recorded on April 21 2026.
 
+GPT-5.5, GPT-5.6 Sol, Opus 4.8, and Claude Fable 5 Results updated July 20 2026.
+
 
 ### LLM with Oracle Page(s) + Web Search (PDF Only)
 
@@ -80,6 +82,8 @@ LLM performance when provided the oracle page(s) needed to answer each question 
 
 GPT-5.4 and Opus 4.6 Results recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655).
 Opus 4.7 Results recorded on April 21 2026.
+
+GPT-5.5, GPT-5.6 Sol, Opus 4.8, and Claude Fable 5 Results updated July 20 2026.
 
 ## Getting Started
 
