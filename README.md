@@ -197,3 +197,18 @@ june      → 06    december  → 12
 - JSON file: `treasury_bulletins_parsed/jsons/treasury_bulletin_1941_01.json`
 - Text file: `treasury_bulletins_parsed/transformed/treasury_bulletin_1941_01.txt`
 - PDF file: `treasury_bulletin_pdfs/treasury_bulletin_1941_01.pdf`
+
+## EvalScope support
+
+EvalScope provides a community integration for running OfficeQA with OpenAI-compatible model endpoints while saving predictions, scores, and reports in a standardized format.
+
+```bash
+evalscope eval \
+  --model YOUR_MODEL \
+  --api-url OPENAI_API_COMPAT_URL \
+  --api-key EMPTY_TOKEN \
+  --datasets officeqa \
+  --limit 10
+```
+
+See the EvalScope guide: https://evalscope.readthedocs.io/en/latest/benchmarks/officeqa.html
