@@ -58,11 +58,13 @@ Headline results on **OfficeQA Pro** (N=133). See the [OfficeQA Technical Report
 
 ### Agent Harness Performance
 
-End-to-end performance of frontier agents operating over the Treasury Bulletin corpus.
+End-to-end performance of frontier agents operating over the Treasury Bulletin PDF corpus tested in their respective agent harnesses given full capabilities so it can perform file search (read, grep, glob, etc.), web search, programming execution and other tool functionalities. Tests Claude Claude Agent SDK, Codex SDK and Gemini (deprecated)/Antigravity CLI on respective frontier models 
+
 
 <p align="center">
   <img src="figures/officeqa_pro_agent_harness_performance.png" width="700"/>
 </p>
+
 
 GPT-5.1 and Opus 4.5 Results included as reference point to results from the [OfficeQA blog](https://www.databricks.com/blog/introducing-officeqa-benchmark-end-to-end-grounded-reasoning) and re-run with latest OfficeQA Pro. Recorded on March 9 2026 [OfficeQA Technical Report](https://arxiv.org/abs/2603.08655).
 
@@ -71,6 +73,7 @@ Opus 4.7 Results recorded on April 21 2026.
 
 GPT-5.5, GPT-5.6 Sol, Opus 4.8, and Claude Fable 5 Results updated July 20 2026.
 
+Opus 5 and Antigravity Gemini 3.1 Pro (denoted by *) results updated August 2 2026
 
 ### LLM with Oracle Page(s) + Web Search (PDF Only)
 
